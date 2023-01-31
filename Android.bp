@@ -44,6 +44,7 @@ cc_library_headers {
     export_include_dirs: ["include_jni"],
     native_bridge_supported: true,
     vendor_available: true,
+    product_available: true,
     target: {
         windows: {
             enabled: true,
