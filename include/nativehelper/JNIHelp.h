@@ -358,7 +358,7 @@ end:
 
 /*
  * Register one or more native methods with a particular class.  "className" looks like
- * "java/lang/String". Aborts on failure, returns 0 on success.
+ * "java/lang/String". Aborts on failure, or returns JNI_OK.
  */
 [[maybe_unused]] static int jniRegisterNativeMethods(JNIEnv* env, const char* className,
                                                      const JNINativeMethod* methods,
@@ -372,8 +372,8 @@ end:
     }
     int result = env->RegisterNatives(clazz, methods, numMethods);
     env->DeleteLocalRef(clazz);
-    if (result == 0) {
-        return 0;
+    if (result == JNI_OK) {
+        return JNI_OK;
     }
 
     // Failure to register natives is fatal. Try to report the corresponding exception,
@@ -383,13 +383,13 @@ end:
         struct ExpandableString summary;
         ExpandableStringInitialize(&summary);
         if (GetExceptionSummary(env, thrown, &summary)) {
-            __android_log_print(ANDROID_LOG_FATAL, "JNIHelp", "%s", summary.data);
+            __android_log_assert("thrown != NULL", "JNIHelp", "%s", summary.data);
         }
         ExpandableStringRelease(&summary);
         env->DeleteLocalRef(thrown);
     }
-    __android_log_print(ANDROID_LOG_FATAL, "JNIHelp",
-                        "RegisterNatives failed for '%s'; aborting...", className);
+    __android_log_assert("RegisterNatives() != JNI_OK", "JNIHelp",
+        "RegisterNatives failed for '%s'; aborting...", className);
     return result;
 }
 
