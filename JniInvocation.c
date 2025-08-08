@@ -70,10 +70,15 @@ static bool RunningOnVM() {
   return on_vm != NULL && strcmp("true", on_vm) == 0;
 }
 
+static bool RunningOnSBC() {
+  const char* on_sbc = getenv("ART_TEST_ON_SBC");
+  return on_sbc != NULL && strcmp("true", on_sbc) == 0;
+}
+
 static bool IsDebuggable() {
 #ifdef __ANDROID__
-  if (RunningOnVM()) {
-    // VM environment is always treated as debuggable, as it has no system properties to query.
+  if (RunningOnVM() || RunningOnSBC()) {
+    // VM/SBC environment is always treated as debuggable, as it has no system properties to query.
     return true;
   }
 
