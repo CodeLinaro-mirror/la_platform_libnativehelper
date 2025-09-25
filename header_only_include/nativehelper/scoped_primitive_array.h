@@ -181,9 +181,17 @@ class ScopedCriticalArray {
         DISALLOW_COPY_AND_ASSIGN(ScopedCriticalArray);
 };
 
-// Scoped<PrimitiveType>CriticalArray(RO/RW) provide convenient critical
-// access to Java arrays from JNI code. Usage of these should be careful, as
-// the JVM imposes significant restrictions for critical array access.
+// ScopedBooleanCriticalArrayRO, ScopedBooleanCriticalArrayRW,
+// ScopedByteCriticalArrayRO, ScopedByteCriticalArrayRW,
+// ScopedCharCriticalArrayRO, ScopedCharCriticalArrayRW,
+// ScopedDoubleCriticalArrayRO, ScopedDoubleCriticalArrayRW,
+// ScopedFloatCriticalArrayRO, ScopedFloatCriticalArrayRW,
+// ScopedIntCriticalArrayRO, ScopedIntCriticalArrayRW,
+// ScopedLongCriticalArrayRO, ScopedLongCriticalArrayRW,
+// ScopedShortCriticalArrayRO, and ScopedShortCriticalArrayRW
+// provide convenient critical access to Java arrays from JNI code.
+// Usage of these should be careful, as the JVM imposes significant
+// restrictions on critical array access.
 // See https://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/functions.html#GetPrimitiveArrayCritical
 // for more details about the JVM restrictions.
 #define INSTANTIATE_SCOPED_PRIMITIVE_CRITICAL_ARRAY(PRIMITIVE_TYPE, NAME) \
