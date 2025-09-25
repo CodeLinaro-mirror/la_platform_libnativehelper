@@ -122,7 +122,10 @@ cc_library_static {
         "include_platform",
         "include_platform_header_only",
     ],
-    visibility: ["//frameworks/base/libs/nativehelper_jvm"],
+    visibility: [
+        "//frameworks/base/libs/nativehelper_jvm",
+        ":__subpackages__",
+    ],
     stl: "none",
     apex_available: [
         "com.android.art",
@@ -130,6 +133,10 @@ cc_library_static {
     ],
     min_sdk_version: "S", // 31
     target: {
+        host: {
+            header_libs: ["libdexfile_all_headers"],
+            srcs: ["utf.cpp"],
+        },
         windows: {
             enabled: true,
         },

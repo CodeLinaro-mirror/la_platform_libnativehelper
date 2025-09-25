@@ -189,3 +189,28 @@ TEST_F(LibnativehelperTest, CreateUtfOrReturnVoidFailed) {
 
     EXPECT_FALSE(execution_completed);
 }
+
+TEST_F(LibnativehelperTest, CreateScopedUtfChars) {
+    // Several byte representations of the Java string literal "\u0000\ud834\udd1e".
+    constexpr uint16_t kUtf16[] = { 0x0000, 0xd834, 0xdd1e };
+    constexpr uint8_t kArtUtf8[] = { 0xc0, 0x80, 0xf0, 0x9d, 0x84, 0x9e };
+    constexpr uint8_t kModifiedUtf8[] = { 0xc0, 0x80, 0xed, 0xa0, 0xb4, 0xed, 0xb4, 0x9e };
+
+    // Create a Java string from UTF-16 as it behaves the same regardless of the JVM.
+    ScopedLocalRef<jstring> j_str(mEnv, mEnv->NewString((const jchar*) kUtf16, std::size(kUtf16)));
+
+    ScopedUtfChars jni_utf(mEnv, j_str.get());
+#if defined(__ANDROID__) || defined(ART_BASE_ADDRESS)
+    EXPECT_EQ(jni_utf.size(), sizeof(kArtUtf8));
+    EXPECT_EQ(memcmp(jni_utf.c_str(), kArtUtf8, sizeof(kArtUtf8)), 0);
+#else
+    // On host JVM, GetStringUTFChars returns modified UTF-8 chars.
+    EXPECT_EQ(jni_utf.size(), sizeof(kModifiedUtf8));
+    EXPECT_EQ(memcmp(jni_utf.c_str(), kModifiedUtf8, sizeof(kModifiedUtf8)), 0);
+#endif
+
+    // ScopedArtUtfChars always returns the same chars as ART regardless of the JVM.
+    ScopedArtUtfChars art_utf(mEnv, j_str.get());
+    EXPECT_EQ(art_utf.size(), sizeof(kArtUtf8));
+    EXPECT_EQ(memcmp(art_utf.c_str(), kArtUtf8, sizeof(kArtUtf8)), 0);
+}
