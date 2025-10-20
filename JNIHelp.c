@@ -16,17 +16,15 @@
 
 #include "include/nativehelper/JNIHelp.h"
 
+#include <jni.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <jni.h>
-
 #define LOG_TAG "JNIHelp"
 #include "ALog-priv.h"
-
 #include "ExpandableString.h"
 
 //
@@ -77,11 +75,13 @@ static bool AppendJString(JNIEnv* env, jstring text, struct ExpandableString* ds
  * be populated with the "binary" class name and, if present, the
  * exception message.
  */
-static bool GetExceptionSummary(JNIEnv* env, jthrowable thrown, struct ExpandableString* dst) {
+__attribute__((cold)) static bool GetExceptionSummary(JNIEnv* env,
+                                                      jthrowable thrown,
+                                                      struct ExpandableString* dst) {
     // Summary is <exception_class_name> ": " <exception_message>
     jclass exceptionClass = (*env)->GetObjectClass(env, thrown);  // Always succeeds
     jmethodID getName = FindMethod(env, "java/lang/Class", "getName", "()Ljava/lang/String;");
-    jstring className = (jstring) (*env)->CallObjectMethod(env, exceptionClass, getName);
+    jstring className = (jstring)(*env)->CallObjectMethod(env, exceptionClass, getName);
     if (className == NULL) {
         ExpandableStringAssign(dst, "<error getting class name>");
         (*env)->ExceptionClear(env);
@@ -92,7 +92,7 @@ static bool GetExceptionSummary(JNIEnv* env, jthrowable thrown, struct Expandabl
     exceptionClass = NULL;
 
     if (!AppendJString(env, className, dst)) {
-        ExpandableStringAssign(dst,  "<error getting class name UTF-8>");
+        ExpandableStringAssign(dst, "<error getting class name UTF-8>");
         (*env)->ExceptionClear(env);
         (*env)->DeleteLocalRef(env, className);
         return false;
@@ -103,7 +103,7 @@ static bool GetExceptionSummary(JNIEnv* env, jthrowable thrown, struct Expandabl
     bool success = false;
     jmethodID getMessage =
         FindMethod(env, "java/lang/Throwable", "getMessage", "()Ljava/lang/String;");
-    jstring message = (jstring) (*env)->CallObjectMethod(env, thrown, getMessage);
+    jstring message = (jstring)(*env)->CallObjectMethod(env, thrown, getMessage);
     if (message != NULL) {
         success = (ExpandableStringAppend(dst, ": ") && AppendJString(env, message, dst));
     } else if ((*env)->ExceptionOccurred(env) == NULL) {
@@ -138,7 +138,7 @@ static jobject NewStringWriter(JNIEnv* env) {
 static jstring StringWriterToString(JNIEnv* env, jobject stringWriter) {
     jmethodID toString =
         FindMethod(env, "java/io/StringWriter", "toString", "()Ljava/lang/String;");
-    return (jstring) (*env)->CallObjectMethod(env, stringWriter, toString);
+    return (jstring)(*env)->CallObjectMethod(env, stringWriter, toString);
 }
 
 static jobject NewPrintWriter(JNIEnv* env, jobject writer) {
@@ -149,7 +149,9 @@ static jobject NewPrintWriter(JNIEnv* env, jobject writer) {
     return instance;
 }
 
-static bool GetStackTrace(JNIEnv* env, jthrowable thrown, struct ExpandableString* dst) {
+__attribute__((cold)) static bool GetStackTrace(JNIEnv* env,
+                                                jthrowable thrown,
+                                                struct ExpandableString* dst) {
     // This function is equivalent to the following Java snippet:
     //   StringWriter sw = new StringWriter();
     //   PrintWriter pw = new PrintWriter(sw);
@@ -187,7 +189,9 @@ static bool GetStackTrace(JNIEnv* env, jthrowable thrown, struct ExpandableStrin
     return success;
 }
 
-static void GetStackTraceOrSummary(JNIEnv* env, jthrowable thrown, struct ExpandableString* dst) {
+__attribute__((cold)) static void GetStackTraceOrSummary(JNIEnv* env,
+                                                         jthrowable thrown,
+                                                         struct ExpandableString* dst) {
     // This method attempts to get a stack trace or summary info for an exception.
     // The exception may be provided in the |thrown| argument to this function.
     // If |thrown| is NULL, then any pending exception is used if it exists.
@@ -201,7 +205,7 @@ static void GetStackTraceOrSummary(JNIEnv* env, jthrowable thrown, struct Expand
 
     if (thrown == NULL) {
         if (pendingException == NULL) {
-            ExpandableStringAssign(dst,  "<no pending exception>");
+            ExpandableStringAssign(dst, "<no pending exception>");
             return;
         }
         thrown = pendingException;
@@ -236,7 +240,10 @@ static void DiscardPendingException(JNIEnv* env, const char* className) {
     (*env)->DeleteLocalRef(env, exception);
 }
 
-static int ThrowException(JNIEnv* env, const char* className, const char* ctorSig, ...) {
+__attribute__((cold)) static int ThrowException(JNIEnv* env,
+                                                const char* className,
+                                                const char* ctorSig,
+                                                ...) {
     int status = -1;
     jclass exceptionClass = NULL;
 
@@ -257,7 +264,7 @@ static int ThrowException(JNIEnv* env, const char* className, const char* ctorSi
         }
 
         jmethodID init = (*env)->GetMethodID(env, exceptionClass, "<init>", ctorSig);
-        if(init == NULL) {
+        if (init == NULL) {
             ALOGE("Failed to find constructor for '%s' '%s'", className, ctorSig);
             goto end;
         }
@@ -306,26 +313,28 @@ static jstring CreateExceptionMsg(JNIEnv* env, const char* msg) {
  * the macro, or manipulate the va_list to replace the C string to a jstring.
  * This seems like the cleaner solution.
  */
-#define THROW_EXCEPTION_WITH_MESSAGE(env, className, ctorSig, msg, ...) ({                 \
-    jstring _detailMessage = CreateExceptionMsg(env, msg);                                 \
-    int _status = ThrowException(env, className, ctorSig, _detailMessage, ## __VA_ARGS__); \
-    if (_detailMessage != NULL) {                                                          \
-        (*env)->DeleteLocalRef(env, _detailMessage);                                       \
-    }                                                                                      \
-    _status; })
+#define THROW_EXCEPTION_WITH_MESSAGE(env, className, ctorSig, msg, ...)                       \
+    ({                                                                                        \
+        jstring _detailMessage = CreateExceptionMsg(env, msg);                                \
+        int _status = ThrowException(env, className, ctorSig, _detailMessage, ##__VA_ARGS__); \
+        if (_detailMessage != NULL) {                                                         \
+            (*env)->DeleteLocalRef(env, _detailMessage);                                      \
+        }                                                                                     \
+        _status;                                                                              \
+    })
 
 //
 // JNIHelp external API
 //
 
-int jniRegisterNativeMethods(JNIEnv* env, const char* className,
-    const JNINativeMethod* methods, int numMethods)
-{
+int jniRegisterNativeMethods(JNIEnv* env,
+                             const char* className,
+                             const JNINativeMethod* methods,
+                             int numMethods) {
     ALOGV("Registering %s's %d native methods...", className, numMethods);
     jclass clazz = (*env)->FindClass(env, className);
-    ALOG_ALWAYS_FATAL_IF(clazz == NULL,
-                         "Native registration unable to find class '%s'; aborting...",
-                         className);
+    ALOG_ALWAYS_FATAL_IF(
+        clazz == NULL, "Native registration unable to find class '%s'; aborting...", className);
     int result = (*env)->RegisterNatives(env, clazz, methods, numMethods);
     (*env)->DeleteLocalRef(env, clazz);
     if (result == 0) {
@@ -348,7 +357,10 @@ int jniRegisterNativeMethods(JNIEnv* env, const char* className,
     return result;
 }
 
-void jniLogException(JNIEnv* env, int priority, const char* tag, jthrowable thrown) {
+__attribute__((cold)) void jniLogException(JNIEnv* env,
+                                           int priority,
+                                           const char* tag,
+                                           jthrowable thrown) {
     struct ExpandableString summary;
     ExpandableStringInitialize(&summary);
     GetStackTraceOrSummary(env, thrown, &summary);
@@ -357,33 +369,40 @@ void jniLogException(JNIEnv* env, int priority, const char* tag, jthrowable thro
     ExpandableStringRelease(&summary);
 }
 
-int jniThrowException(JNIEnv* env, const char* className, const char* message) {
+__attribute__((cold)) int jniThrowException(JNIEnv* env,
+                                            const char* className,
+                                            const char* message) {
     return THROW_EXCEPTION_WITH_MESSAGE(env, className, "(Ljava/lang/String;)V", message);
 }
 
-int jniThrowExceptionFmt(JNIEnv* env, const char* className, const char* fmt, va_list args) {
+__attribute__((cold)) int jniThrowExceptionFmt(JNIEnv* env,
+                                               const char* className,
+                                               const char* fmt,
+                                               va_list args) {
     char msgBuf[512];
     vsnprintf(msgBuf, sizeof(msgBuf), fmt, args);
     return jniThrowException(env, className, msgBuf);
 }
 
-int jniThrowNullPointerException(JNIEnv* env, const char* msg) {
+__attribute__((cold)) int jniThrowNullPointerException(JNIEnv* env, const char* msg) {
     return jniThrowException(env, "java/lang/NullPointerException", msg);
 }
 
-int jniThrowRuntimeException(JNIEnv* env, const char* msg) {
+__attribute__((cold)) int jniThrowRuntimeException(JNIEnv* env, const char* msg) {
     return jniThrowException(env, "java/lang/RuntimeException", msg);
 }
 
-int jniThrowIOException(JNIEnv* env, int errno_value) {
+__attribute__((cold)) int jniThrowIOException(JNIEnv* env, int errno_value) {
     char buffer[80];
     const char* message = platformStrError(errno_value, buffer, sizeof(buffer));
     return jniThrowException(env, "java/io/IOException", message);
 }
 
-int jniThrowErrnoException(JNIEnv* env, const char* functionName, int errno_value) {
-    return THROW_EXCEPTION_WITH_MESSAGE(env, "android/system/ErrnoException",
-            "(Ljava/lang/String;I)V", functionName, errno_value);
+__attribute__((cold)) int jniThrowErrnoException(JNIEnv* env,
+                                                 const char* functionName,
+                                                 int errno_value) {
+    return THROW_EXCEPTION_WITH_MESSAGE(
+        env, "android/system/ErrnoException", "(Ljava/lang/String;I)V", functionName, errno_value);
 }
 
 jstring jniCreateString(JNIEnv* env, const jchar* unicodeChars, jsize len) {
