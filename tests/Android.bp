@@ -112,12 +112,11 @@ cc_library {
     defaults: [
         "libnativehelper_common_test_defaults",
     ],
-    host_supported: false,
+    host_supported: true,
     srcs: [
         "libnativehelper_test.cpp",
     ],
     shared_libs: [
-        "libnativehelper",
         "liblog",
     ],
     static_libs: [
@@ -125,19 +124,40 @@ cc_library {
         "libgmock",
         "libnativetesthelper_jni",
     ],
+    target: {
+        android: {
+            shared_libs: [
+                "libnativehelper",
+            ],
+        },
+        host: {
+            static_libs: [
+                "libnativehelper_any_vm",
+            ],
+        },
+    },
+}
+
+// This library is also used by LibnativehelperInternalTestCasesRavenwood for host side tests.
+java_library {
+    name: "LibnativehelperInternalTestLib",
+    host_supported: true,
+    srcs: [
+        "src/**/*.java",
+    ],
+    static_libs: [
+        "nativetesthelper",
+    ],
 }
 
 android_test {
     name: "LibnativehelperInternalTestCases",
-    srcs: [
-        "src/**/*.java",
-    ],
     jni_libs: [
         "libnativehelper_internal_tests_jni",
     ],
     static_libs: [
+        "LibnativehelperInternalTestLib",
         "ctstestrunner-axt",
-        "nativetesthelper",
     ],
     manifest: "AndroidManifest.xml",
     test_suites: ["general-tests"],
